@@ -11,7 +11,7 @@ const express = require("express");
 const cors = require("cors");
 
 
-const OpenAI = require("openai");
+const Groq = require("groq-sdk");
 const storage = multer.diskStorage({
 
   destination: function (req, file, cb) {
@@ -30,9 +30,10 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-const client = new OpenAI({
+
+
+const client = new Groq({
   apiKey: process.env.GROQ_API_KEY,
-  baseURL: "https://api.groq.com/openai/v1"
 });
 
 let handbookText = "";
