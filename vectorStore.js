@@ -1,12 +1,14 @@
-
 const { RecursiveCharacterTextSplitter } = require("@langchain/textsplitters");
-const { pipeline } = require("@xenova/transformers");
 
+let pipeline;
 let embedder;
-
 let documents = [];
 
 async function initializeVectorStore() {
+
+  const transformers = await import("@xenova/transformers");
+
+  pipeline = transformers.pipeline;
 
   embedder = await pipeline(
     "feature-extraction",
