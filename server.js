@@ -61,7 +61,7 @@ async function initializeDocuments() {
 
 }
 
-initializeDocuments();
+
 
 app.get("/", (req, res) => {
   res.send("Compliance AI running");
@@ -155,6 +155,14 @@ app.post(
   }
 );
 
-app.listen(3000, () => {
-  console.log("Server running on port 3000");
-});
+async function startServer() {
+
+  await initializeDocuments();
+
+  app.listen(3000, () => {
+    console.log("Server running on port 3000");
+  });
+
+}
+
+startServer();
