@@ -1,22 +1,34 @@
 const { RecursiveCharacterTextSplitter } = require("@langchain/textsplitters");
 const { pipeline } = require("@xenova/transformers");
 
-let embedder;
+let embedder = null;
 
 let documents = [];
 
 async function initializeVectorStore() {
 
-  embedder = await pipeline(
-    "feature-extraction",
-    "Xenova/all-MiniLM-L6-v2"
-  );
+  try {
 
-  console.log("Embedding model loaded");
+    embedder = await pipeline(
+      "feature-extraction",
+      "Xenova/all-MiniLM-L6-v2"
+    );
+
+    console.log("Embedding model loaded");
+
+  } catch (error) {
+
+    console.log("Embedding model error:", error);
+
+  }
 
 }
 
 async function createEmbedding(text) {
+
+  if (!embedder) {
+    throw new Error("Embedder not initialized");
+  }
 
   const output = await embedder(text, {
     pooling: "mean",
@@ -29,27 +41,27 @@ async function createEmbedding(text) {
 
 async function addDocumentsToVectorStore(text) {
 
+  documents = [];
+
   const splitter = new RecursiveCharacterTextSplitter({
-    chunkSize: 1000,
-    chunkOverlap: 200
+    chunkSize: 500,
+    chunkOverlap: 50
   });
 
   const docs = await splitter.createDocuments([text]);
 
   for (const doc of docs) {
 
-    const chunk = doc.pageContent;
-
-    const embedding = await createEmbedding(chunk);
+    const embedding = await createEmbedding(doc.pageContent);
 
     documents.push({
-      text: chunk,
+      text: doc.pageContent,
       embedding
     });
 
   }
 
-  console.log("Documents embedded");
+  console.log("Documents indexed");
 
 }
 
@@ -70,20 +82,14 @@ async function searchDocuments(question) {
   const queryEmbedding = await createEmbedding(question);
 
   const scoredDocs = documents.map(doc => ({
-
     text: doc.text,
-
-    score: cosineSimilarity(
-      queryEmbedding,
-      doc.embedding
-    )
-
+    score: cosineSimilarity(queryEmbedding, doc.embedding)
   }));
 
   scoredDocs.sort((a, b) => b.score - a.score);
 
   return scoredDocs
-    .slice(0, 3)
+    .slice(0, 2)
     .map(doc => doc.text)
     .join("\n\n");
 
