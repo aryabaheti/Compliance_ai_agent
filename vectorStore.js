@@ -1,42 +1,89 @@
 const { RecursiveCharacterTextSplitter } = require("@langchain/textsplitters");
+const { pipeline } = require("@xenova/transformers");
+
+let embedder;
 
 let documents = [];
 
 async function initializeVectorStore() {
 
-  console.log("Simple vector store initialized");
+  embedder = await pipeline(
+    "feature-extraction",
+    "Xenova/all-MiniLM-L6-v2"
+  );
+
+  console.log("Embedding model loaded");
+
+}
+
+async function createEmbedding(text) {
+
+  const output = await embedder(text, {
+    pooling: "mean",
+    normalize: true
+  });
+
+  return Array.from(output.data);
 
 }
 
 async function addDocumentsToVectorStore(text) {
 
   const splitter = new RecursiveCharacterTextSplitter({
-    chunkSize: 1500,
-    chunkOverlap: 300
+    chunkSize: 1000,
+    chunkOverlap: 200
   });
 
   const docs = await splitter.createDocuments([text]);
 
-  documents = docs.map(doc => ({
-    text: doc.pageContent
-  }));
+  for (const doc of docs) {
 
-  console.log("Documents indexed");
+    const chunk = doc.pageContent;
+
+    const embedding = await createEmbedding(chunk);
+
+    documents.push({
+      text: chunk,
+      embedding
+    });
+
+  }
+
+  console.log("Documents embedded");
+
+}
+
+function cosineSimilarity(a, b) {
+
+  let sum = 0;
+
+  for (let i = 0; i < a.length; i++) {
+    sum += a[i] * b[i];
+  }
+
+  return sum;
 
 }
 
 async function searchDocuments(question) {
 
-  const lowerQuestion = question.toLowerCase();
+  const queryEmbedding = await createEmbedding(question);
 
-  const matchedDocs = documents.filter(doc =>
-    doc.text.toLowerCase().includes(
-      lowerQuestion.split(" ")[0]
+  const scoredDocs = documents.map(doc => ({
+
+    text: doc.text,
+
+    score: cosineSimilarity(
+      queryEmbedding,
+      doc.embedding
     )
-  );
 
-  return matchedDocs
-    .slice(0, 6)
+  }));
+
+  scoredDocs.sort((a, b) => b.score - a.score);
+
+  return scoredDocs
+    .slice(0, 3)
     .map(doc => doc.text)
     .join("\n\n");
 

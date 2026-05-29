@@ -1,6 +1,3 @@
-require("dotenv").config();
-const multer = require("multer");
-const path = require("path");
 const {
   initializeVectorStore,
   addDocumentsToVectorStore,
@@ -11,29 +8,16 @@ const express = require("express");
 const cors = require("cors");
 
 
-const Groq = require("groq-sdk");
-const storage = multer.diskStorage({
+const OpenAI = require("openai");
 
-  destination: function (req, file, cb) {
-    cb(null, "uploads/");
-  },
-
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + path.extname(file.originalname));
-  }
-
-});
-
-const upload = multer({ storage });
 const app = express();
 
 app.use(express.json());
 app.use(cors());
 
-
-
-const client = new Groq({
+const client = new OpenAI({
   apiKey: process.env.GROQ_API_KEY,
+  baseURL: "https://api.groq.com/openai/v1"
 });
 
 let handbookText = "";
@@ -61,7 +45,7 @@ async function initializeDocuments() {
 
 }
 
-
+initializeDocuments();
 
 app.get("/", (req, res) => {
   res.send("Compliance AI running");
@@ -125,44 +109,7 @@ ${question}
   }
 
 });
-app.post(
-  "/upload",
-  upload.single("document"),
-  async (req, res) => {
 
-    try {
-
-      console.log("Uploaded:", req.file.filename);
-
-      handbookText = await loadDocuments();
-
-      await addDocumentsToVectorStore(handbookText);
-
-      res.json({
-        message: "Document uploaded and indexed successfully"
-      });
-
-    } catch (error) {
-
-      console.log(error);
-
-      res.status(500).json({
-        error: "Upload failed"
-      });
-
-    }
-
-  }
-);
-
-async function startServer() {
-
-  await initializeDocuments();
-
-  app.listen(3000, () => {
-    console.log("Server running on port 3000");
-  });
-
-}
-
-startServer();
+app.listen(3000, () => {
+  console.log("Server running on port 3000");
+});
